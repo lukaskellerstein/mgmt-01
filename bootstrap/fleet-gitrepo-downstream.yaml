@@ -1,0 +1,20 @@
+# GitRepo that pushes the observability AGENT to workload clusters (home-lab-01, onion-*).
+# Lives in `fleet-default` → targets downstream clusters, selected by label.
+# Label a cluster to opt it in:  kubectl label clusters.fleet.cattle.io <name> -n fleet-default observability=agent
+#
+apiVersion: fleet.cattle.io/v1alpha1
+kind: GitRepo
+metadata:
+  name: fleet-observability-agents
+  namespace: fleet-default
+spec:
+  repo: https://github.com/lukaskellerstein/mgmt-01
+  branch: main
+  paths:
+    - fleet/downstream/observability-agent
+  targets:
+    - name: obs-agent
+      clusterSelector:
+        matchLabels:
+          observability: agent
+  pollingInterval: 60s

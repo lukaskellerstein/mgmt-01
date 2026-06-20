@@ -1,0 +1,10 @@
+# Garage — EU (Deuxfleurs), S3-compatible object store. Single store serving:
+#   - rancher-backup target            (bucket: rancher-backup)
+#   - Thanos long-term metrics         (bucket: thanos)
+#   - Loki chunks/index                (bucket: loki)
+#   - restic/etcd snapshots            (bucket: backups)
+#
+# Deployed as raw manifests (Garage is simple enough that a chart adds little).
+# replication_factor=1 → single-node, NON-DURABLE (Decision 9). Mirror critical
+# buckets off-site (cheap cloud bucket) for real DR — see docs/runbook.md.
+defaultNamespace: object-store

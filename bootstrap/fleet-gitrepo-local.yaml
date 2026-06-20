@@ -1,0 +1,24 @@
+# GitRepo that makes mgmt-01 manage ITSELF via Fleet.
+# Lives in the built-in `fleet-local` workspace → targets only the local (mgmt-01) cluster.
+# Apply once during bootstrap, after the manual foundation + secrets are in place:
+#
+#   kubectl apply -f bootstrap/fleet-gitrepo-local.yaml
+#
+apiVersion: fleet.cattle.io/v1alpha1
+kind: GitRepo
+metadata:
+  name: mgmt-01-platform
+  namespace: fleet-local            # fleet-local = the local/management cluster only
+spec:
+  repo: https://github.com/lukaskellerstein/mgmt-01
+  branch: main
+  paths:
+    - fleet/local/cloudflared
+    - fleet/local/object-store-garage
+    - fleet/local/rancher-backup
+    - fleet/local/monitoring
+    - fleet/local/logging
+    - fleet/local/registry-cache
+  # Private repo? reference a basic-auth/ssh secret in fleet-local:
+  # clientSecretName: git-credentials
+  pollingInterval: 60s

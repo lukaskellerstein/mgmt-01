@@ -1,0 +1,22 @@
+# SOPS encryption rules for mgmt-01 secrets.
+#
+# Only the secret VALUES (data / stringData) are encrypted; metadata (name,
+# namespace, kind) stays readable so you can diff and review WHICH secret a file
+# defines without decrypting it.
+#
+# Setup (once):
+#   1. make age-init                      # generates age/keys.txt, prints the recipient
+#   2. paste the age1... recipient below, replacing the placeholder
+#
+# Per secret:
+#   cp secrets/NAME.example.yaml secrets/NAME.enc.yaml
+#   edit the values in secrets/NAME.enc.yaml
+#   sops -e -i secrets/NAME.enc.yaml      # encrypt in place  (or: make secrets-encrypt)
+#   git add secrets/NAME.enc.yaml         # the encrypted file is safe to commit
+#
+creation_rules:
+  - path_regex: secrets/.*\.enc\.yaml$
+    encrypted_regex: ^(data|stringData)$
+    # Replace with YOUR age public key (from `make age-init`). Multiple recipients
+    # (comma-separated) let more than one operator / a backup key decrypt.
+    age: age1REPLACE_WITH_YOUR_AGE_PUBLIC_KEY

@@ -1,0 +1,8 @@
+# Decrypted secrets — only *.enc.yaml / SOPS-encrypted files belong in Git
+*.secret.yaml
+!*.enc.yaml
+secrets.dec.*
+
+# Local kube/age material
+*.kubeconfig
+age/keys.txt

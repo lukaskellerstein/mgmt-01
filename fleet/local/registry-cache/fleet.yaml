@@ -1,0 +1,23 @@
+# Pull-through registry cache — LAN mirror of docker.io so every node build / image pull
+# hits mgmt-01 instead of the internet. Speeds node onboarding & customer-site provisioning.
+# Point nodes at it via RKE2 registries.yaml mirror config (see docs/runbook.md).
+defaultNamespace: registry-cache
+helm:
+  repo: https://helm.twun.io
+  chart: docker-registry
+  version: "__REPLACE__"          # [verify]
+  releaseName: registry-cache
+  values:
+    replicaCount: 1
+    persistence:
+      enabled: true
+      size: 50Gi
+      storageClass: local-path    # [verify]
+    proxy:
+      enabled: true
+      remoteurl: https://registry-1.docker.io
+      # For Docker Hub rate limits, add a username/password via secretRef.
+    resources:
+      requests: { cpu: 50m, memory: 128Mi }
+      limits:   { memory: 512Mi }
+    # Optionally add more caches (ghcr.io, quay.io, registry.suse.com) as separate releases.
