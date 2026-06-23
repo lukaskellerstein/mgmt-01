@@ -1,26 +1,27 @@
 # Bootstrap & Day-2 — mgmt-01
 
-GitOps bringup + one-time initialisation that can't be declarative. The manual foundation
+Helmfile deploy + one-time initialisation that can't be declarative. The manual foundation
 below this (OS, RKE2, cert-manager, Rancher, Cloudflare tunnel) lives in
 [`manual-setup.md`](./manual-setup.md) — do that first.
 
 ## 0. Prereqs
 [`manual-setup.md`](./manual-setup.md) complete: Leap Micro + RKE2 + cert-manager + Rancher +
 `agent-tls-mode=system-store` + Cloudflare tunnel created. `kubectl` against `mgmt-01` works.
+Tools: `sops`, `age`, `helm`, `helmfile`, and the `helm-secrets` plugin
+(`brew install sops age helmfile && helm plugin install https://github.com/jkroepke/helm-secrets`).
 
 ## 1. Secrets — SOPS + age (nothing plaintext in Git)
-Encrypted secrets are committed to `secrets/*.enc.yaml`; **Fleet does not decrypt SOPS**, so
-they are applied out of band with `make secrets-apply`. Run `make help` for all targets.
+Encrypted secrets are committed to `secrets/*.enc.yaml` and applied out of band with
+`make secrets-apply` so Helm never owns them. Run `make help` for all targets.
 
 ```bash
-# tools: sops + age must be installed (brew install sops age)
 make age-init                       # writes age/keys.txt (back it up offline!), prints recipient
 # paste the printed age1... recipient into .sops.yaml (the `age:` line)
 ```
 
-Create each secret from its template, then encrypt in place:
+Create each out-of-band `Secret` from its template, then encrypt in place:
 ```bash
-for s in garage-secrets tunnel-token backup-encryption; do        # Wave 1 (createable now)
+for s in garage-secrets backup-encryption; do        # Wave 1 (createable now)
   cp secrets/$s.example.yaml secrets/$s.enc.yaml
   make sops-edit f=$s               # fill values → saved encrypted; git add secrets/$s.enc.yaml
 done
@@ -28,21 +29,27 @@ done
 Wave-1 helpers:
 - `garage-secrets`: `openssl rand -hex 32` for each of RPC secret / admin token.
 - `backup-encryption`: `head -c 32 /dev/urandom | base64` for the aescbc key.
-- `tunnel-token`: the Cloudflare tunnel token from `manual-setup.md` §5.
+
+The cloudflared **tunnel token** is not a k8s Secret — it's a SOPS Helm values overlay that
+Helmfile decrypts in-line (`helm-secrets`). Create it from its example with the token from
+`manual-setup.md` §5:
+```bash
+cp values/secrets/cloudflared-token.example.yaml values/secrets/cloudflared-token.enc.yaml
+sops values/secrets/cloudflared-token.enc.yaml    # paste cloudflare.tunnel_token → saved encrypted
+```
 
 The **Wave-2** secrets (`garage-s3-creds`, `thanos-objstore`, `loki-s3-creds`) need the
 Garage S3 key, which doesn't exist until §3 — fill them there.
 
-Alternatives if you outgrow this: Sealed Secrets (controller decrypts in-cluster, so Fleet
-can own the `SealedSecret` CRs) or External Secrets Operator.
-
-## 2. Apply secrets, then hand off to Fleet
+## 2. Apply secrets, then deploy with Helmfile
 ```bash
 make secrets-apply                       # creates namespaces + applies secrets/*.enc.yaml (idempotent)
-kubectl apply -f bootstrap/              # the two Fleet GitRepos → Fleet takes over this repo
+# pin every "__REPLACE__" chart version in helmfile.yaml first   # [verify]
+make diff                                # preview the release plan (helmfile diff)
+make deploy                              # helmfile sync — installs/upgrades all local releases
 ```
-Fleet now reconciles `fleet/local/*` — Garage, monitoring, logging, registry-cache,
-rancher-backup all come up. (Wave-2 consumers stay pending until §3.)
+`helmfile sync` brings up Garage, monitoring, logging, registry-cache and rancher-backup.
+(Wave-2 consumers stay pending until §3.)
 
 ## 3. Initialise Garage (one-time, after the pod is Running)
 Garage needs its cluster layout assigned and buckets/keys created.

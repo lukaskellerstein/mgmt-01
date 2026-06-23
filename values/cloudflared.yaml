@@ -1,0 +1,16 @@
+# cloudflare-tunnel-remote values → rancher.cellarwood.org (+ grafana.cellarwood.org if exposed).
+#
+# This is a *dashboard-managed* (token) tunnel: the hostname→service routing lives in the
+# Cloudflare Zero Trust dashboard (manual-setup.md §5), not in Git.
+#
+# The tunnel token is a SECRET and is NOT in this file. It is supplied at deploy time from a
+# SOPS-encrypted values overlay decrypted by Helmfile (helm-secrets):
+#   values/secrets/cloudflared-token.enc.yaml  →  cloudflare.tunnel_token: <token>
+# See values/secrets/cloudflared-token.example.yaml for the shape.
+replicaCount: 2               # connection redundancy
+image:
+  repository: cloudflare/cloudflared
+  tag: "__REPLACE__"          # [verify] pin a tag for GitOps reproducibility
+resources:
+  requests: { cpu: 20m, memory: 64Mi }
+  limits:   { memory: 128Mi }

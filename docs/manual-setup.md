@@ -2,12 +2,12 @@
 
 The bits that are **not** automated by this repo: the OS, the cluster, Rancher itself,
 and the Cloudflare tunnel. These are one-time, hardware- or account-bound steps. Do them
-in order, then hand the box to GitOps via [`bootstrap.md`](./bootstrap.md).
+in order, then deploy the rest with Helmfile via [`bootstrap.md`](./bootstrap.md).
 
-> Why manual: Fleet ships *inside* Rancher, so it can't install Rancher (chicken-and-egg);
+> Why manual: Rancher needs a running cluster before Helm can install it (chicken-and-egg);
 > OS/RKE2 are node-local; the Cloudflare tunnel is external-account config. Automating these
 > would cost more than it saves on a single management box. Everything *above* this layer is
-> in Git and reconciled by Fleet.
+> in Git as Helm charts + values and deployed with Helmfile.
 
 ---
 
@@ -64,12 +64,12 @@ Routing lives in the Cloudflare Zero Trust dashboard (decision: dashboard-manage
 1. **Zero Trust → Networks → Tunnels → Create a tunnel** → connector **Cloudflared** →
    name it `mgmt-01`.
 2. **Copy the tunnel token** shown on the install screen (the long `ey...` value). Put it in
-   the SOPS secret — see [`bootstrap.md`](./bootstrap.md) §1:
+   the SOPS Helm values overlay — see [`bootstrap.md`](./bootstrap.md) §1:
    ```
-   secrets/tunnel-token.enc.yaml  →  stringData.values\.yaml  →  cloudflare.tunnel_token
+   values/secrets/cloudflared-token.enc.yaml  →  cloudflare.tunnel_token
    ```
-   (The cloudflared Helm release in `fleet/local/cloudflared/` overlays it via
-   `helm.valuesFrom`; you do **not** install the connector on the host — it runs in-cluster.)
+   (Helmfile decrypts it in-line via `helm-secrets` and merges it over `values/cloudflared.yaml`;
+   you do **not** install the connector on the host — it runs in-cluster.)
 3. **Public Hostnames** — add these (service URLs are in-cluster, since cloudflared runs in
    the cluster). Cloudflare auto-creates the proxied DNS records on `cellarwood.org`:
 
@@ -78,7 +78,7 @@ Routing lives in the Cloudflare Zero Trust dashboard (decision: dashboard-manage
    | `rancher.cellarwood.org` | HTTP | `http://rancher.cattle-system.svc.cluster.local:80` |
    | `grafana.cellarwood.org` | HTTP | `http://rancher-monitoring-grafana.cattle-monitoring-system.svc.cluster.local:80` |
 
-   > `grafana.cellarwood.org` only resolves once the monitoring stack is up (Fleet, later).
+   > `grafana.cellarwood.org` only resolves once the monitoring stack is up (Helmfile, later).
    > Add it now or when you enable monitoring — either works.
 
    For remote **SSH + kubectl** over this same tunnel (TCP public hostnames + Cloudflare
@@ -86,6 +86,6 @@ Routing lives in the Cloudflare Zero Trust dashboard (decision: dashboard-manage
 
 ---
 
-## Done → hand off to GitOps
+## Done → deploy the platform
 Foundation is up. Continue with [`bootstrap.md`](./bootstrap.md):
-secrets (SOPS) → `kubectl apply -f bootstrap/` (the Fleet GitRepos) → Garage init → day-2.
+secrets (SOPS) → `make deploy` (`helmfile sync`) → Garage init → day-2.

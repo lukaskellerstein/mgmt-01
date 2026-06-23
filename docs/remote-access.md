@@ -9,10 +9,10 @@ against the RKE2 API server — over the *same* cloudflared tunnel that already 
 > hostnames** on the tunnel and gate them with **Cloudflare Access** — no inbound firewall
 > hole on the NUC, every session authenticated at Cloudflare's edge first.
 
-Nothing changes in `fleet/local/cloudflared/` — the tunnel is **dashboard-managed** (token),
-so the connector carries TCP automatically and all routing is added in the Zero Trust
-dashboard. The in-cluster cloudflared pod reaches the node's `:22` (host) and the API server
-(in-cluster Service) directly.
+Nothing changes in the cloudflared release (`values/cloudflared.yaml`) — the tunnel is
+**dashboard-managed** (token), so the connector carries TCP automatically and all routing is
+added in the Zero Trust dashboard. The in-cluster cloudflared pod reaches the node's `:22`
+(host) and the API server (in-cluster Service) directly.
 
 ---
 
@@ -116,4 +116,4 @@ Keep the proxy on `127.0.0.1:6443` to match the cert/kubeconfig.
 - Routes + Access policies: **dashboard** (§1–§2) — external-account config, like the rest of
   the tunnel.
 - Client: `cloudflared` + an SSH `ProxyCommand` (§4) and a TCP proxy for kubectl (§5).
-- Repo/Fleet: **unchanged** — same connector, no new manifest.
+- Repo: **unchanged** — same connector, no new manifest or values change.

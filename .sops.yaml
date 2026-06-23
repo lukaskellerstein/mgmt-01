@@ -15,8 +15,14 @@
 #   git add secrets/NAME.enc.yaml         # the encrypted file is safe to commit
 #
 creation_rules:
+  # k8s Secret manifests applied out of band (make secrets-apply): encrypt only the values.
   - path_regex: secrets/.*\.enc\.yaml$
     encrypted_regex: ^(data|stringData)$
     # Replace with YOUR age public key (from `make age-init`). Multiple recipients
     # (comma-separated) let more than one operator / a backup key decrypt.
+    age: age1REPLACE_WITH_YOUR_AGE_PUBLIC_KEY
+
+  # Helm values overlays decrypted in-line by Helmfile (helm-secrets), e.g. the
+  # cloudflared tunnel token. No encrypted_regex → all values encrypted, keys stay readable.
+  - path_regex: values/secrets/.*\.enc\.yaml$
     age: age1REPLACE_WITH_YOUR_AGE_PUBLIC_KEY

@@ -6,7 +6,8 @@ management plane of the NUC fleet.
 > Architecture & decisions live in `onion-ai-eu/executive-management/infra/`
 > (`k8s-fleet-platform-architecture.md`, `nuc-fleet-inventory.md`) and the Obsidian
 > *Fleet Build Runbook*. This repo is the **executable** companion to those docs:
-> everything `mgmt-01` runs, beyond the bootstrap, is defined here and reconciled by Fleet.
+> everything `mgmt-01` runs, beyond the manual foundation, is defined here as **Helm charts +
+> values** and deployed with **Helmfile**.
 
 ---
 
@@ -20,7 +21,7 @@ story rather than diluting the control plane.
 
 | Layer | Component | Purpose | Tier |
 |---|---|---|---|
-| Control plane | Rancher + cert-manager | manage the fleet (bootstrap, not in this repo's Fleet scope) | — |
+| Control plane | Rancher + cert-manager | manage the fleet (manual foundation, not deployed by this repo) | — |
 | Connectivity | `cloudflared` | tunnel → `rancher.cellarwood.org`; remote SSH + kubectl ([`docs/remote-access.md`](docs/remote-access.md)) | 0 |
 | Backup | `rancher-backup` | protect Rancher state → object store | 1 |
 | Object store | **Garage** (EU, S3-compatible) | one store: backups + Thanos + Loki | 1 |
@@ -33,7 +34,7 @@ story rather than diluting the control plane.
 
 ---
 
-## The model: manual foundation → Fleet for everything else
+## The model: manual foundation → Helm (Helmfile) for everything else
 
 ```
    docs/manual-setup.md  │ OS + RKE2 + cert-manager + Rancher (Helm) + CF tunnel │  one-time,
@@ -41,43 +42,55 @@ story rather than diluting the control plane.
                          └──────────────────────────────────────────────────────┘
                                                    │ then
                                                    ▼
-   bootstrap/*.yaml       │ kubectl apply → two Fleet GitRepos (point back at this repo) │
-                         └─────────────────────────────────────────────────────────────┘
-                                                   │ creates
+   helmfile.yaml          │ helmfile sync → all platform releases on mgmt-01 (local) │
+   values/*.yaml          └─────────────────────────────────────────────────────────┘
+                                                   │ and, per workload cluster
                                                    ▼
-                         ┌─────────────────────────────────────────────┐
-   fleet/local   │ GitRepo (ns: fleet-local)  → mgmt-01 itself  │  ← Fleet reconciles
-   fleet/downstr │ GitRepo (ns: fleet-default)→ home/onion nodes │     this repo
-                         └─────────────────────────────────────────────┘
+   helmfile.downstream.yaml │ helmfile sync --kube-context <cluster> → observability agent │
+                         └──────────────────────────────────────────────────────────────┘
 ```
 
 - **Manual foundation (`docs/manual-setup.md`)** — the one-time, node-local or
   external-account config that isn't worth automating on a single box: OS + RKE2, then
   cert-manager + Rancher via **Helm**, and the Cloudflare tunnel via the dashboard. No
   Terraform — `helm` + `kubectl` + documented steps instead.
-- **`bootstrap/*.yaml`** — two Fleet `GitRepo` objects, applied once with `kubectl`, that
-  hand control of the cluster(s) back to this repo.
-- **Fleet (`fleet/`)** does everything declarative and in-cluster. `fleet/local/*` targets
-  the `mgmt-01` **local** cluster (via the built-in `fleet-local` workspace);
-  `fleet/downstream/*` pushes the observability agents to the workload clusters.
+- **`helmfile.yaml` + `values/*.yaml`** — every platform service on `mgmt-01`, one Helm
+  release per component, applied with `helmfile sync`. Charts with no upstream Helm chart
+  (Garage, the rancher-backup `Backup` CR) are wrapped in the generic `bedag/raw` chart so
+  everything deploys through one tool.
+- **`helmfile.downstream.yaml`** — the light observability agent for the workload clusters;
+  Helm is single-cluster per run, so apply it once per cluster with that kube-context.
 
 This means the **VPS migration in Decision 7 is a redeploy, not a rebuild**: stand up a new
-Rancher (Helm), `kubectl apply -f bootstrap/` to re-register this same repo, and Fleet
-repaints the box.
+Rancher (Helm), apply the out-of-band secrets, and `helmfile sync` repaints the box.
+
+### Deploy
+
+```bash
+make secrets-apply        # out-of-band secrets first (Helm does not own these)
+# pin every "__REPLACE__" chart version in helmfile.yaml   # [verify]
+make diff                 # preview        (helmfile diff)
+make deploy               # apply all      (helmfile sync)
+make deploy-downstream c=<context>   # observability agent → one workload cluster
+```
+
+Tooling: `helm`, `helmfile`, and the `helm-secrets` plugin
+(`brew install helmfile && helm plugin install https://github.com/jkroepke/helm-secrets`).
 
 ---
 
 ## Bootstrap order (chicken-and-egg)
 
-Fleet can't deploy Rancher because Fleet ships *inside* Rancher. So a thin foundation stays
-manual, then GitOps takes over:
+Helm can't deploy Rancher onto a box that has no cluster yet, so a thin foundation stays
+manual, then Helmfile applies everything else:
 
 1. **Manual foundation** (`docs/manual-setup.md`): Leap Micro + RKE2 (per the Fleet Build
    Runbook) → cert-manager + Rancher via Helm → `agent-tls-mode` → Cloudflare tunnel.
 2. **Secrets** (`docs/bootstrap.md` §1): SOPS + age → `make secrets-apply`.
-3. **Hand off to Fleet:** `kubectl apply -f bootstrap/` → the two `GitRepo`s.
-4. **Fleet reconciles** `fleet/local/*` onto `mgmt-01`, then `fleet/downstream/*` onto the
-   workload clusters as they're imported.
+3. **Deploy:** `make deploy` (`helmfile sync`) brings up Garage, monitoring, logging,
+   registry-cache and rancher-backup on `mgmt-01`.
+4. **Downstream:** `make deploy-downstream c=<cluster>` pushes the observability agent to each
+   workload cluster as it's imported.
 5. **Day-2:** initialise Garage (`docs/bootstrap.md` §3), fill the wave-2 secrets.
 
 ---
@@ -94,10 +107,15 @@ secrets/
 └── <name>.enc.yaml       # committed — SOPS-encrypted real values (you create these)
 ```
 
+There are two ways a secret reaches a workload, both SOPS-encrypted in Git:
+
+**A. Out-of-band `Secret`s** (`secrets/*.enc.yaml` → `make secrets-apply` → `kubectl apply`).
+Charts reference them (`existingSecret` / `envFrom` / `credentialSecretName`); Helm never owns
+them, so a `helmfile sync` can't clobber a live value.
+
 | Secret | Namespace | Wave | Holds |
 |---|---|---|---|
 | `garage-secrets` | `object-store` | 1 | Garage RPC secret + admin token |
-| `tunnel-token` | `cloudflared` | 1 | Cloudflare Tunnel token |
 | `backup-encryption` | `cattle-resources-system` | 1 | rancher-backup at-rest key |
 | `garage-s3-creds` | `cattle-resources-system` | 2 | Garage S3 key for rancher-backup |
 | `thanos-objstore` | `cattle-monitoring-system` | 2 | Garage S3 config for Thanos |
@@ -106,12 +124,9 @@ secrets/
 *Wave 1* secrets can be created up front; *Wave 2* needs the Garage S3 key, which only
 exists after Garage is initialised (`docs/bootstrap.md` §3).
 
-> **Fleet does not decrypt SOPS.** Unlike Flux/ArgoCD, Rancher Fleet has no native SOPS
-> support, so secrets are applied **out of band** with `make secrets-apply` (decrypt →
-> `kubectl apply`) during bootstrap and on rotation — Fleet reconciles everything else.
-> The inline `Secret` blocks were therefore removed from the Fleet bundles so Fleet can't
-> clobber the live values. (If you later want secrets reconciled by Fleet too, switch to
-> **Sealed Secrets** — committable `SealedSecret` CRs decrypted by an in-cluster controller.)
+**B. Helm values overlay** — the cloudflared tunnel token (`values/secrets/cloudflared-token.enc.yaml`).
+The chart takes the token as a plain value, so Helmfile decrypts the overlay in-line at deploy
+via the **`helm-secrets`** plugin and merges it over `values/cloudflared.yaml` — no k8s `Secret`.
 
 Workflow (`make help` lists all targets):
 

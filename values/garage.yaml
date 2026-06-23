@@ -1,0 +1,107 @@
+# Garage — EU (Deuxfleurs), S3-compatible object store. Single store serving:
+#   - rancher-backup target            (bucket: rancher-backup)
+#   - Thanos long-term metrics         (bucket: thanos)
+#   - Loki chunks/index                (bucket: loki)
+#   - restic/etcd snapshots            (bucket: backups)
+#
+# Garage ships no official chart, so its raw manifests are wrapped in the generic
+# `bedag/raw` chart → it deploys/reconciles like every other Helm release here.
+# replication_factor=1 → single-node, NON-DURABLE (Decision 9). Mirror critical
+# buckets off-site (cheap cloud bucket) for real DR — see docs/runbook.md.
+#
+# The `garage-secrets` Secret (GARAGE_RPC_SECRET / GARAGE_ADMIN_TOKEN) is deliberately
+# NOT here — it is applied out of band via SOPS (secrets/garage-secrets.enc.yaml ->
+# `make secrets-apply`) so Helm never owns/clobbers the live value. See docs/bootstrap.md §1.
+resources:
+  - apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: object-store
+
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: garage-config
+      namespace: object-store
+    data:
+      garage.toml: |
+        metadata_dir = "/var/lib/garage/meta"
+        data_dir     = "/var/lib/garage/data"
+        db_engine    = "lmdb"
+
+        # Single node: one copy only. NON-DURABLE — mirror critical buckets off-site.
+        replication_factor = 1          # [verify] Garage <v1.0 used: replication_mode = "none"
+
+        rpc_bind_addr   = "[::]:3901"
+        rpc_public_addr = "127.0.0.1:3901"
+        # rpc_secret is injected from the garage-secrets Secret via env (GARAGE_RPC_SECRET)
+
+        [s3_api]
+        s3_region     = "garage"
+        api_bind_addr = "[::]:3900"
+        root_domain   = ".s3.garage.local"
+
+        [admin]
+        api_bind_addr = "[::]:3903"
+        # admin_token injected via env (GARAGE_ADMIN_TOKEN)
+
+  - apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      name: garage
+      namespace: object-store
+    spec:
+      serviceName: garage
+      replicas: 1
+      selector:
+        matchLabels: { app: garage }
+      template:
+        metadata:
+          labels: { app: garage }
+        spec:
+          containers:
+            - name: garage
+              image: dxflrs/garage:v1.0.1        # [verify]
+              envFrom:
+                - secretRef: { name: garage-secrets }
+              ports:
+                - { name: s3, containerPort: 3900 }
+                - { name: rpc, containerPort: 3901 }
+                - { name: admin, containerPort: 3903 }
+              volumeMounts:
+                - { name: config, mountPath: /etc/garage.toml, subPath: garage.toml }
+                - { name: data, mountPath: /var/lib/garage }
+              resources:
+                requests: { cpu: 100m, memory: 256Mi }
+                limits:   { memory: 1Gi }
+          volumes:
+            - name: config
+              configMap: { name: garage-config }
+      volumeClaimTemplates:
+        - metadata: { name: data }
+          spec:
+            accessModes: ["ReadWriteOnce"]
+            storageClassName: local-path        # [verify] RKE2 default; or longhorn
+            resources:
+              requests:
+                storage: 200Gi
+
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: garage-s3
+      namespace: object-store
+    spec:
+      selector: { app: garage }
+      ports:
+        - { name: s3, port: 3900, targetPort: 3900 }
+
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: garage-admin
+      namespace: object-store
+    spec:
+      selector: { app: garage }
+      ports:
+        - { name: admin, port: 3903, targetPort: 3903 }

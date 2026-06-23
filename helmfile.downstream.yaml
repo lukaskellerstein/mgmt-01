@@ -1,0 +1,23 @@
+# mgmt-01 — DOWNSTREAM workload clusters (home-lab-01, onion-*) observability agents.
+#
+# The light observability agent for each workload cluster. Helm is single-cluster per run, so
+# apply this once per cluster with that cluster's kube-context selected:
+#
+#   helmfile -f helmfile.downstream.yaml --kube-context <cluster> sync
+#
+# For more than a handful of clusters, loop this over kube-contexts (or `make deploy-downstream
+# c=<context>`). A pull-based GitOps tool would push to all clusters at once — revisit if the
+# cluster count grows enough to make per-context runs tedious.
+
+repositories:
+  - name: prometheus-community
+    url: https://prometheus-community.github.io/helm-charts
+
+releases:
+  - name: obs-agent
+    namespace: cattle-monitoring-system
+    createNamespace: true
+    chart: prometheus-community/prometheus
+    version: "__REPLACE__"          # [verify] (or kube-prometheus-stack with agentMode)
+    values:
+      - values/observability-agent.yaml

@@ -1,0 +1,101 @@
+# mgmt-01 — LOCAL cluster (the Rancher management box) deployed with plain Helm via Helmfile.
+#
+# This is the deployment path for mgmt-01: `helmfile sync` installs/upgrades every platform
+# service on the box. One release per component; charts with no upstream Helm chart (Garage,
+# the rancher-backup Backup CR) are wrapped in the generic bedag/raw chart so everything
+# deploys through one tool.
+#
+# Prereqs:
+#   - kube-context points at mgmt-01 (the local cluster)
+#   - `helm`, `helmfile`, and the `helm-secrets` plugin (for the cloudflared SOPS overlay)
+#   - out-of-band secrets applied first:  make secrets-apply   (Helm does NOT own these)
+#   - pin every "__REPLACE__" chart version before running   # [verify]
+#
+# Usage:
+#   helmfile diff           # preview
+#   helmfile sync           # apply all
+#   helmfile -l name=loki sync   # apply one release
+
+repositories:
+  - name: prometheus-community
+    url: https://prometheus-community.github.io/helm-charts
+  - name: grafana
+    url: https://grafana.github.io/helm-charts
+  - name: cloudflare
+    url: https://cloudflare.github.io/helm-charts
+  - name: rancher-charts
+    url: https://charts.rancher.io
+  - name: twuni
+    url: https://helm.twun.io
+  - name: bedag
+    url: https://bedag.github.io/helm-charts   # generic `raw` chart for plain manifests
+
+releases:
+  # Object store first — Loki, Thanos and rancher-backup all target its S3 API.
+  - name: garage
+    namespace: object-store
+    createNamespace: true
+    chart: bedag/raw
+    version: "__REPLACE__"          # [verify] bedag/raw chart version
+    values:
+      - values/garage.yaml
+
+  # Connectivity: Cloudflare tunnel. Token comes from the SOPS overlay (helm-secrets).
+  - name: cloudflared
+    namespace: cloudflared
+    createNamespace: true
+    chart: cloudflare/cloudflare-tunnel-remote
+    version: "0.1.2"                # [verify] latest at time of writing
+    values:
+      - values/cloudflared.yaml
+    secrets:
+      - values/secrets/cloudflared-token.enc.yaml   # cloudflare.tunnel_token (SOPS)
+
+  # Backup operator, then the nightly Backup CR (needs the operator's CRDs first).
+  - name: rancher-backup
+    namespace: cattle-resources-system
+    createNamespace: true
+    chart: rancher-charts/rancher-backup
+    version: "__REPLACE__"          # [verify] match your Rancher 2.14.x line
+    values:
+      - values/rancher-backup.yaml
+
+  - name: rancher-backup-resources
+    namespace: cattle-resources-system
+    chart: bedag/raw
+    version: "__REPLACE__"          # [verify] bedag/raw chart version
+    needs:
+      - cattle-resources-system/rancher-backup
+      - object-store/garage
+    values:
+      - values/rancher-backup-resources.yaml
+
+  # Observability: central metrics (+ Thanos to Garage) and central logs (Loki to Garage).
+  - name: rancher-monitoring
+    namespace: cattle-monitoring-system
+    createNamespace: true
+    chart: prometheus-community/kube-prometheus-stack
+    version: "__REPLACE__"          # [verify]
+    needs:
+      - object-store/garage
+    values:
+      - values/monitoring.yaml
+
+  - name: loki
+    namespace: cattle-logging-system
+    createNamespace: true
+    chart: grafana/loki
+    version: "__REPLACE__"          # [verify]
+    needs:
+      - object-store/garage
+    values:
+      - values/logging.yaml
+
+  # LAN pull-through registry cache.
+  - name: registry-cache
+    namespace: registry-cache
+    createNamespace: true
+    chart: twuni/docker-registry
+    version: "__REPLACE__"          # [verify]
+    values:
+      - values/registry-cache.yaml

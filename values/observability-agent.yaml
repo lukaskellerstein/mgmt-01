@@ -1,0 +1,17 @@
+# prometheus (agent mode) values — pushed to workload clusters (home-lab-01, onion-*).
+# A LIGHT agent: Prometheus in agent mode remote-writing to mgmt-01, plus Alloy for logs.
+# Downstream clusters keep no long-term store; mgmt-01 (Thanos+Loki on Garage) holds it.
+# Deployed via helmfile.downstream.yaml against each workload cluster's kube-context.
+server:
+  # agent mode = scrape + remote_write only, minimal local storage/RAM
+  extraFlags:
+    - enable-feature=agent
+  remoteWrite:
+    - url: https://prometheus.cellarwood.org/api/v1/write   # mgmt-01 via cloudflared, OR
+      # url: http://rancher.cellarwood.org/... through Rancher proxy — pick your exposure
+  resources:
+    requests: { cpu: 50m, memory: 256Mi }
+    limits:   { memory: 512Mi }
+alertmanager: { enabled: false }
+prometheus-pushgateway: { enabled: false }
+# Per-cluster external_labels (cluster name): set via a per-cluster overlay / --state-values.

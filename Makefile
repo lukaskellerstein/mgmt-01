@@ -1,9 +1,8 @@
-# mgmt-01 — SOPS + age secret workflow.
+# mgmt-01 — SOPS + age secret workflow + Helmfile deploy.
 #
 # Encrypted source of truth: secrets/*.enc.yaml (committed, safe).
-# Fleet does NOT decrypt SOPS, so secrets are applied OUT OF BAND with
-# `make secrets-apply` during bootstrap and on rotation. Everything else on the
-# box is reconciled by Fleet from this repo.
+# These out-of-band Secrets are applied with `make secrets-apply` so Helm never
+# owns them. Everything else on the box is deployed from helmfile.yaml (`make deploy`).
 
 SHELL := /bin/bash
 AGE_KEY_FILE ?= age/keys.txt
@@ -12,9 +11,11 @@ export SOPS_AGE_KEY_FILE := $(AGE_KEY_FILE)
 ENC_FILES := $(wildcard secrets/*.enc.yaml)
 # Namespaces that must exist before secrets land. cattle-* are normally created by
 # Rancher/charts; we ensure them idempotently so a secret can be applied first.
-SECRET_NAMESPACES := object-store cattle-resources-system cattle-monitoring-system cattle-logging-system cloudflared
+# (cloudflared needs no secret here — its token is a SOPS Helm values overlay.)
+SECRET_NAMESPACES := object-store cattle-resources-system cattle-monitoring-system cattle-logging-system
 
-.PHONY: help age-init sops-edit secrets-encrypt secrets-apply secrets-decrypt secrets-verify
+.PHONY: help age-init sops-edit secrets-encrypt secrets-apply secrets-decrypt secrets-verify \
+        deploy diff deploy-downstream
 
 help:
 	@echo "mgmt-01 secret workflow (SOPS + age):"
@@ -24,6 +25,24 @@ help:
 	@echo "  make secrets-apply       decrypt every secrets/*.enc.yaml and kubectl apply (out-of-band)"
 	@echo "  make secrets-decrypt     print decrypted secrets to stdout (review only)"
 	@echo "  make secrets-verify      list which secrets exist in the cluster"
+	@echo ""
+	@echo "mgmt-01 deploy (plain Helm via Helmfile):"
+	@echo "  make diff                preview the local-cluster diff (helmfile diff)"
+	@echo "  make deploy              install/upgrade all local-cluster releases (helmfile sync)"
+	@echo "  make deploy-downstream c=CONTEXT  push the observability agent to a workload cluster"
+
+# --- Deploy (Helmfile) -------------------------------------------------------
+# Helm-first path. Run `make secrets-apply` first (Helm does not own the out-of-band
+# secrets). Pin every __REPLACE__ chart version in helmfile.yaml before deploying.
+diff:
+	helmfile diff
+
+deploy:
+	helmfile sync
+
+deploy-downstream:
+	@test -n "$(c)" || { echo "usage: make deploy-downstream c=<kube-context>"; exit 1; }
+	helmfile -f helmfile.downstream.yaml --kube-context $(c) sync
 
 age-init:
 	@mkdir -p $(dir $(AGE_KEY_FILE))
@@ -67,4 +86,3 @@ secrets-verify:
 	@kubectl get secret -n cattle-resources-system garage-s3-creds backup-encryption 2>/dev/null || echo "MISSING: cattle-resources-system creds"
 	@kubectl get secret -n cattle-monitoring-system thanos-objstore 2>/dev/null || echo "MISSING: cattle-monitoring-system/thanos-objstore"
 	@kubectl get secret -n cattle-logging-system loki-s3-creds 2>/dev/null || echo "MISSING: cattle-logging-system/loki-s3-creds"
-	@kubectl get secret -n cloudflared tunnel-token 2>/dev/null || echo "MISSING: cloudflared/tunnel-token"

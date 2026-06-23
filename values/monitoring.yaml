@@ -1,0 +1,35 @@
+# kube-prometheus-stack values — central metrics + Thanos sidecar shipping to Garage.
+# This Prometheus also receives remote-write from downstream clusters (helmfile.downstream.yaml).
+# Grafana here = one dashboard for the whole fleet (single-pane, extended to metrics).
+#
+# If you prefer Rancher UI integration instead, swap the chart for the `rancher-monitoring`
+# catalog chart (same upstream) in helmfile.yaml.
+prometheus:
+  prometheusSpec:
+    retention: 6h             # keep local short; Thanos holds the long tail in Garage
+    # Accept remote-write from downstream agents:
+    enableRemoteWriteReceiver: true
+    resources:
+      requests: { cpu: 200m, memory: 1Gi }
+      limits:   { memory: 3Gi }
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path     # [verify]
+          resources: { requests: { storage: 20Gi } }
+    thanos:
+      objectStorageConfig:
+        existingSecret:
+          name: thanos-objstore
+          key: objstore.yml
+grafana:
+  enabled: true
+  defaultDashboardsEnabled: true
+  # exposed via cloudflared (add a public hostname grafana.cellarwood.org if wanted)
+# Trim what a single management box doesn't need to scrape:
+nodeExporter: { enabled: true }
+kubeEtcd: { enabled: true }
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests: { cpu: 50m, memory: 128Mi }
