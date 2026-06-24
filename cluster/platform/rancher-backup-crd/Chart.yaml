@@ -1,0 +1,16 @@
+apiVersion: v2
+name: rancher-backup-crd
+description: >-
+  CRDs for rancher-backup (Backup / Restore / ResourceSet). Rancher ships these in a separate
+  chart that MUST be installed before the rancher-backup operator (its pre-install hook blocks
+  otherwise). Thin wrapper over the upstream rancher-backup-crd chart. Keep the version in lockstep
+  with cluster/platform/rancher-backup.
+type: application
+version: 1.0.0
+appVersion: "v10.0.5"   # [verify] match cluster/platform/rancher-backup
+maintainers:
+  - name: Lukas Kellerstein
+dependencies:
+  - name: rancher-backup-crd
+    version: "109.0.5+up10.0.5"   # [verify] keep == rancher-backup
+    repository: https://charts.rancher.io

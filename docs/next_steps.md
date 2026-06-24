@@ -7,9 +7,8 @@ part of the current bringup — revisit when the trigger conditions below are me
 
 ## Policy enforcement — Kubewarden
 
-**Status:** deferred — not deployed and **not** in the repo. The earlier scaffold (a
-`kubewarden` release in `helmfile.yaml` + `values/kubewarden*.yaml`, plus its README component
-row and `bootstrap.md` mention) was removed so nothing deploys it. This doc is the sole record.
+**Status:** deferred — not deployed and **not** in the repo. There is no
+`cluster/platform/kubewarden` chart and no namespace for it; this doc is the sole record.
 Re-introduce it from scratch when adopting (see below).
 
 ### Why we want it
@@ -29,9 +28,9 @@ Typical guardrails:
 ### Why it fits this estate
 - **Rancher/SUSE-native** — SUSE's own project, first-class in the ecosystem we already run
   (`cattle-*` namespaces, rancher-backup).
-- **Fleet-wide, central authoring** — author policy once and apply the same release to every
-  downstream cluster across the NUC fleet (the same per-context Helmfile pattern as
-  `helmfile.downstream.yaml`).
+- **Fleet-wide, central authoring** — author policy once and apply the same chart to every
+  downstream cluster across the NUC fleet (the same per-context pattern as
+  `cluster/downstream/observability-agent`).
 - **Governance story** — lets us *demonstrate* uniform control enforcement across the fleet
   (EU / compliance angle), not just hope CI pipelines catch things.
 - **Lightweight** — Wasm policies, small footprint (controller requests `50m` CPU / `128Mi`).
@@ -47,15 +46,16 @@ Any of these become true:
 - We want defaults (security contexts, labels, limits) injected automatically.
 - We need consistent rules across many clusters without per-pipeline copy-paste.
 
-### To adopt (rebuild the releases)
-1. Add releases to `helmfile.yaml` from the Kubewarden repo (`https://charts.kubewarden.io`),
-   namespace `cattle-kubewarden-system`, with `values/kubewarden*.yaml`. Pin real chart versions.
-2. Add `needs:` on cert-manager (Kubewarden requires it; already on mgmt-01).
-3. Respect chart ordering with `needs:` — `kubewarden-crds` → `kubewarden-controller` →
-   `kubewarden-defaults` (three releases, chained).
+### To adopt (build the charts)
+1. Add wrapper charts under `cluster/platform/kubewarden-*` from the Kubewarden repo
+   (`https://charts.kubewarden.io`), namespace `cattle-kubewarden-system`. Pin real chart versions
+   in each `Chart.yaml` dependency. Add the namespace to `bootstrap/namespaces.yaml`.
+2. cert-manager is a prerequisite (Kubewarden requires it; install it on mgmt-01 first).
+3. Respect chart ordering by deploy order — `kubewarden-crds` → `kubewarden-controller` →
+   `kubewarden-defaults` (three charts/releases, installed in sequence).
 4. Start in **monitor/audit mode** (report violations without blocking), then flip policies to
    enforcing once the noise is understood.
 5. Author an initial policy set (start with: no-privileged-pods, required resource limits).
-6. To enforce on downstream clusters too, add the releases to `helmfile.downstream.yaml` and
-   `make deploy-downstream c=<cluster>` per cluster.
+6. To enforce on downstream clusters too, copy the charts under `cluster/downstream/` and
+   `helm upgrade --install ... --kube-context <cluster>` per cluster.
 7. (Optional) Restore the README component-table row and the `bootstrap.md` wave mention.

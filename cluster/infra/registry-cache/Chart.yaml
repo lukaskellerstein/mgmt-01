@@ -1,0 +1,18 @@
+apiVersion: v2
+name: registry-cache
+description: >-
+  Pull-through registry cache for mgmt-01 — a LAN mirror of docker.io so every node build /
+  image pull hits mgmt-01 instead of the internet (faster node onboarding & customer-site
+  provisioning). Point nodes at it via RKE2 registries.yaml mirror config (docs/bootstrap.md §5).
+  Thin wrapper over the upstream docker-registry chart.
+type: application
+# Bump when this wrapper's values change.
+version: 1.0.0
+# Tracks the upstream docker-registry app version.
+appVersion: "2.8.3"   # [verify]
+maintainers:
+  - name: Lukas Kellerstein
+dependencies:
+  - name: docker-registry
+    version: "__REPLACE__"   # [verify] latest at https://helm.twun.io
+    repository: https://helm.twun.io

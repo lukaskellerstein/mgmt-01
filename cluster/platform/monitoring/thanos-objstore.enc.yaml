@@ -1,0 +1,36 @@
+# Thanos object-storage config → Garage bucket `thanos`. Real k8s Secret (only data/stringData
+# encrypted). Referenced as existingSecret: thanos-objstore (key objstore.yml) by the Thanos sidecar.
+# Apply out of band: ./scripts/secrets.py apply cluster/platform/monitoring/thanos-objstore.enc.yaml
+# Wave 2: uses the shared Garage S3 app key (see docs/bootstrap.md §3 — import this exact key).
+apiVersion: v1
+kind: Secret
+metadata:
+    name: thanos-objstore
+    namespace: cattle-monitoring-system
+type: Opaque
+stringData:
+    objstore.yml: ENC[AES256_GCM,data:bQw5IV7N6APjVziR78UTiZAeG9O3Yu4OU7zXdRWxZ9MD/oL6+o0GyHuwLGS5Fn7iUaA3EF9vqLpPRHQynvDP1DlSGZVsXZBSzC6T87BvpiAlK4AhvZK+SA9R+PA29/xyb+UhnroXiKCC3PuVnNoTwDvDJ6ymcGifygftxtYPfJTKYJ0Y6agMSaMwHbLKihrcry4C+VACIASsJh7YWVJqhjwgmC8cb1ity5W+qPXk16LqUpRxUBJb9bQY09xPncs5OsYDCCF8K1+WIVX3LmGOwwFxr5I4hvEPSOI0jXk0zRwjoKx1M18WkgRgV2Q=,iv:ND+/Ja03hvrLiFxipfmZHX9X3cqBWoR8vGUW1448pXk=,tag:dX1H7qDS69SS7hLhMGb8Qw==,type:str]
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBLTlNjOXcvUmppTnhHeERr
+            Zk9YQ0p6UTExRnQ3LzcwOGxCRHhJeHF3Q3gwCnhyb3dqTEJDYXFkcDhaNFNDMjdU
+            eW1jNGxBK2ZLZXdlcGFYTm9TbnJGUU0KLS0tIEh5cDBaSklzR2Z6VlMwdkpHQUcv
+            dGFXeGdYdml4Z25UUDBXL2Q1S05mNlkKEwB5N5pWNE2IuTy924DUg2CswsUgIENJ
+            0mCzSEZcQQgqB2ZrXC4NyyArod5D9iBoEAyrBmewgcGhMyldvsTqXQ==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1fgfwws7708s2xk0m99ftrajd98py9r62qnldvkklvs4tx5knz3zs4rjnud
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSA2TlZJNFk2bmNCa0pqNlN3
+            WnNUMTFseXA3N09rbTBCUDB0WlkzVEgzcDJzCm56TkZLT0Z3SnRnT2RoK0RYME04
+            L1RnbHdidFA4anJjcjVZK0FYd1krOFUKLS0tIGI1OThQR1hwWExKRVNKZTlCdG8y
+            UDVrL1o2RjdDZ3RSNUdwTlpJMXM1RFUKMOgfvbNxIKsqI9g7p8QsY35xmnzp5uoZ
+            8paahFO9crpFlIQ+YV6HNxiYIxdYXwYFyYmHpbwfojCTRStPMxl7Mw==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1mpng9vq3ae3ek6c4l0tes05s8um8yv3lg6j7a2xdwy786vrzap8s4w6hg6
+    encrypted_regex: ^(data|stringData)$
+    lastmodified: "2026-06-23T21:32:35Z"
+    mac: ENC[AES256_GCM,data:1z4WphpyrTIojMk3ob/LC6ceCkABpHKhtuO2ic5l4fdg9k81JC2D61aUEa0/fvnksR/C6UGGCTxxEh1yuB1yM51c/Z48E5PLz6UHkk2QwAODm7+VswPu33mGMruWiOPa4hcKK8lUmDIRq+jwVzT0LVNX6A52x+HBu/AUB7c4GGY=,iv:u0eKacBmMjt6EPhq9pBt+Tl/WevV2A0eGQn2XF/Vim8=,tag:tHN5J9AxPTrX0yr5h9334w==,type:str]
+    version: 3.13.1

@@ -1,0 +1,17 @@
+apiVersion: v2
+name: rancher-backup
+description: >-
+  rancher-backup — protects Rancher's own state (CRDs, settings, users, cluster regs) with a nightly
+  encrypted Backup to Garage (bucket rancher-backup). Wraps the upstream rancher-backup operator chart
+  and adds the Backup CR as a first-party template. Cheapest high-value addition on the box.
+type: application
+# Bump when this wrapper's values change.
+version: 1.0.0
+# Tracks the upstream rancher-backup app version.
+appVersion: "v10.0.5"   # [verify] match your Rancher 2.14.x line
+maintainers:
+  - name: Lukas Kellerstein
+dependencies:
+  - name: rancher-backup
+    version: "109.0.5+up10.0.5"   # [verify] match your Rancher 2.14.x line — https://charts.rancher.io
+    repository: https://charts.rancher.io

@@ -1,28 +1,33 @@
-# SOPS encryption rules for mgmt-01 secrets.
+# Fleet SOPS policy — one place that decides how every secret in this repo is encrypted.
+# See docs/secrets.md for the full strategy. SOPS walks up from a file's directory to the
+# nearest .sops.yaml, so this root file governs the whole repo; do NOT add per-file
+# .sops.yaml overrides (they would silently shadow these recipients).
 #
-# Only the secret VALUES (data / stringData) are encrypted; metadata (name,
-# namespace, kind) stays readable so you can diff and review WHICH secret a file
-# defines without decrypting it.
+# Recipients (age PUBLIC keys — the matching PRIVATE keys stay OFF the repo). These are the
+# SAME two fleet recipients used across the fleet, so your existing fleet key decrypts here too:
+#   age1fgfw…z4rjnud  fleet/workstation key  (~/.config/sops/age/keys.txt — every operator)
+#   age1mpng…s4w6hg6  break-glass key        (offline; recovery only — never stored next to the fleet key)
+# Both keys can decrypt every secret, so a lost workstation key never locks the fleet out.
+# After changing recipients here, run: ./scripts/secrets.py rekey
 #
-# Setup (once):
-#   1. make age-init                      # generates age/keys.txt, prints the recipient
-#   2. paste the age1... recipient below, replacing the placeholder
-#
-# Per secret:
-#   cp secrets/NAME.example.yaml secrets/NAME.enc.yaml
-#   edit the values in secrets/NAME.enc.yaml
-#   sops -e -i secrets/NAME.enc.yaml      # encrypt in place  (or: make secrets-encrypt)
-#   git add secrets/NAME.enc.yaml         # the encrypted file is safe to commit
-#
+# Secrets are co-located with the chart that consumes them: cluster/<tier>/<chart>/<name>.enc.yaml.
+# creation_rules are evaluated top-down; the FIRST path_regex match wins. The cloudflared rule
+# MUST come first — otherwise the broader cluster/ rule below (which only encrypts data/stringData)
+# would match the helm-secrets values overlay and leave its token plaintext.
 creation_rules:
-  # k8s Secret manifests applied out of band (make secrets-apply): encrypt only the values.
-  - path_regex: secrets/.*\.enc\.yaml$
-    encrypted_regex: ^(data|stringData)$
-    # Replace with YOUR age public key (from `make age-init`). Multiple recipients
-    # (comma-separated) let more than one operator / a backup key decrypt.
-    age: age1REPLACE_WITH_YOUR_AGE_PUBLIC_KEY
+  # cloudflared — a Helm values overlay rendered into a Secret by the chart, decrypted at deploy
+  # via helm-secrets (`-f secrets://...`). The key is tunnel.token (not data/stringData) → no
+  # encrypted_regex, so the WHOLE file's values are encrypted. Keys stay readable.
+  - path_regex: cluster/infra/cloudflared/secrets\.enc\.yaml$
+    age: >-
+      age1fgfwws7708s2xk0m99ftrajd98py9r62qnldvkklvs4tx5knz3zs4rjnud,
+      age1mpng9vq3ae3ek6c4l0tes05s8um8yv3lg6j7a2xdwy786vrzap8s4w6hg6
 
-  # Helm values overlays decrypted in-line by Helmfile (helm-secrets), e.g. the
-  # cloudflared tunnel token. No encrypted_regex → all values encrypted, keys stay readable.
-  - path_regex: values/secrets/.*\.enc\.yaml$
-    age: age1REPLACE_WITH_YOUR_AGE_PUBLIC_KEY
+  # All other co-located secrets are real k8s Secret manifests applied out of band with
+  # `./scripts/secrets.py apply`: encrypt only data/stringData so apiVersion/kind/metadata stay
+  # readable for clean diffs.
+  - path_regex: cluster/.*\.enc\.yaml$
+    encrypted_regex: ^(data|stringData)$
+    age: >-
+      age1fgfwws7708s2xk0m99ftrajd98py9r62qnldvkklvs4tx5knz3zs4rjnud,
+      age1mpng9vq3ae3ek6c4l0tes05s8um8yv3lg6j7a2xdwy786vrzap8s4w6hg6

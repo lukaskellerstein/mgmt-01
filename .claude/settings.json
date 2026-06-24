@@ -1,0 +1,53 @@
+{
+  "companyAnnouncements": ["Welcome to mgmt-01 — the fleet Rancher control plane"],
+  "permissions": {
+    "allow": [
+      "Agent",
+      "AskUserQuestion",
+      "Bash",
+      "CronCreate",
+      "CronDelete",
+      "CronList",
+      "Edit",
+      "EnterPlanMode",
+      "EnterWorktree",
+      "ExitPlanMode",
+      "ExitWorktree",
+      "Glob",
+      "Grep",
+      "ListMcpResourcesTool",
+      "NotebookEdit",
+      "Read",
+      "ReadMcpResourceTool",
+      "Skill",
+      "TaskCreate",
+      "TaskGet",
+      "TaskList",
+      "TaskOutput",
+      "TaskStop",
+      "TaskUpdate",
+      "ToolSearch",
+      "Write",
+      "WebSearch",
+      "WebFetch"
+    ],
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(rm -rf ~)",
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~/)",
+      "Bash(rm -r -f /)",
+      "Bash(rm -r -f ~)",
+      "Bash(rm -r -f /*)",
+      "Bash(rm -r -f ~/)",
+      "Bash(sudo rm -rf /)",
+      "Bash(sudo rm -rf ~)",
+      "Bash(sudo rm -rf /*)",
+      "Bash(sudo rm -rf ~/)"
+    ]
+  },
+  "enabledPlugins": {
+    "dev-tools-plugin@claude-my-marketplace": true,
+    "infra-plugin@claude-my-marketplace": true
+  }
+}

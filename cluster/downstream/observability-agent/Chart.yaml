@@ -1,0 +1,17 @@
+apiVersion: v2
+name: observability-agent
+description: >-
+  Light observability agent for the WORKLOAD clusters (home-lab-01, onion-*) — Prometheus in agent
+  mode remote-writing to mgmt-01. Downstream clusters keep no long-term store; mgmt-01 (Thanos+Loki
+  on Garage) holds it. Deployed against each workload cluster's kube-context, NOT the local cluster.
+  Thin wrapper over the upstream Prometheus chart.
+type: application
+# Bump when this wrapper's values change.
+version: 1.0.0
+appVersion: "v3.12.0"
+maintainers:
+  - name: Lukas Kellerstein
+dependencies:
+  - name: prometheus
+    version: "29.13.0"   # [verify] (or kube-prometheus-stack with agentMode)
+    repository: https://prometheus-community.github.io/helm-charts

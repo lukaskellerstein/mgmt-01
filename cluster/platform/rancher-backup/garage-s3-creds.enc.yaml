@@ -1,0 +1,36 @@
+# Garage S3 access key for rancher-backup. Real k8s Secret (only data/stringData encrypted).
+# Apply out of band: ./scripts/secrets.py apply cluster/platform/rancher-backup/garage-s3-creds.enc.yaml
+# Wave 2: uses the shared Garage S3 app key (see docs/bootstrap.md §3 — import this exact key).
+apiVersion: v1
+kind: Secret
+metadata:
+    name: garage-s3-creds
+    namespace: cattle-resources-system
+type: Opaque
+stringData:
+    accessKey: ENC[AES256_GCM,data:swQo7oBLvhj2ld1xQU+/rK5zY/dt0JRWwMw=,iv:ykrQpxzyVJEvKID6oJxluUXz38pzocvEVtcXWLFgeO8=,tag:3KDXMxqwUqIf24l6dNALmw==,type:str]
+    secretKey: ENC[AES256_GCM,data:FWhMwK60gaUIMTmfEiJDEpsmA5nlgBmzKwOn75ZbmAzhSJUDY+MPCF1se+aXkdSG5G1i+o3tJB3JldmHlJ8hEg==,iv:6spOUQXtgq3ZcpebMjBFBCsPyfVgvqI0vJPnFhK33dM=,tag:EIG/IaBMDUNljVGc5Ppd7A==,type:str]
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSA5ZjRqMVcvWlI0Lzc2b2NP
+            VllJVnVjYVhBS1ZvOG53N3dHMGhJajYrQzFRCjVXdTBWOUt2QzdCUyt5cVhEVUFB
+            TzRpdHM2SFk4MHFZbkRGSVR5S0ZaNEUKLS0tIGVFc0tMQkNGVVZUNk1KV1I1WE54
+            QlBIeGJZQU00ZFZGUlR6ZWhKblR4SDAKGyd9n2hjEOPFzSCv/JGnNr7A7JyqyRZw
+            nd0q+UMlRADGn7ul37JAsl6nKAP7atYGmXKKllRCEz8x/N94XyNOCQ==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1fgfwws7708s2xk0m99ftrajd98py9r62qnldvkklvs4tx5knz3zs4rjnud
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBlVnBGeGFUNjNPZjJ5RkI2
+            cXk0a2ZPKzJUbUt3YWdXKzdOTHdMWDZUdnpFClJWU2NheEVSbDFRVksxWHFuRnhx
+            emw0N05RYXNoaCs3bjBRRVVvUTFiMXMKLS0tIGJDeGNJdTI3TFk3bkFOWVFOYlJM
+            TzFTbE40Yml3T1lYT3RuSERENTZ2ZkUKW6anlUKlj1XPAn6ctpDwGyyRaThK1qTp
+            ys0jC+RUAw5ZGTQNLj1IYNt7bWXA1Hgdmu1uYQhCz76xD74ZtAuAJA==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1mpng9vq3ae3ek6c4l0tes05s8um8yv3lg6j7a2xdwy786vrzap8s4w6hg6
+    encrypted_regex: ^(data|stringData)$
+    lastmodified: "2026-06-23T21:32:35Z"
+    mac: ENC[AES256_GCM,data:p7m1QnSBmV44W8aUW1IFBImzZ95yrl68wXEwQ7vxsf5OybNN5+avXBE2+CmAxGlnvgVEPvc/SEFT3fTibgc9e/nKhbGgTL7fso+jNl/bK/BrGI9xO2UeQHbIM2W6SvGY5njMuEgrqPJb6JGMqCuHxcc+1vFgGcqt8V0MLc3HGZk=,iv:aukharbL7Pr5hDL1ql/Y54omnCBpQ9ZL4CmxBEmDoIQ=,tag:PjATm9s8bGpPZcCJ0job4A==,type:str]
+    version: 3.13.1

@@ -1,0 +1,23 @@
+{{- if .Values.backup.enabled }}
+# Recurring encrypted Backup → Garage. The Backup CRD ships in the rancher-backup operator
+# subchart's crds/ (Helm installs subchart CRDs before parent templates), so this CR applies cleanly
+# in the same release. The referenced Secrets are applied out of band (see values.yaml).
+apiVersion: resources.cattle.io/v1
+kind: Backup
+metadata:
+  name: {{ .Values.backup.name }}
+spec:
+  resourceSetName: {{ .Values.backup.resourceSetName }}
+  schedule: {{ .Values.backup.schedule | quote }}
+  retentionCount: {{ .Values.backup.retentionCount }}
+  encryptionConfigSecretName: {{ .Values.backup.encryptionConfigSecretName }}
+  storageLocation:
+    s3:
+      credentialSecretName: {{ .Values.backup.s3.credentialSecretName }}
+      credentialSecretNamespace: {{ .Values.backup.s3.credentialSecretNamespace }}
+      bucketName: {{ .Values.backup.s3.bucketName }}
+      endpoint: {{ .Values.backup.s3.endpoint }}
+      insecureTLSSkipVerify: {{ .Values.backup.s3.insecureTLSSkipVerify }}
+      endpointCA: {{ .Values.backup.s3.endpointCA | quote }}
+      region: {{ .Values.backup.s3.region }}
+{{- end }}

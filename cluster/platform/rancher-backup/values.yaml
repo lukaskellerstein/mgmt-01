@@ -1,0 +1,34 @@
+# rancher-backup. The operator (upstream chart, keyed under the dependency name) is tiny — defaults
+# are fine. The `backup` block below configures the first-party Backup CR (templates/backup.yaml).
+#
+# Two Secrets it references are co-located and applied out of band (Helm must not own them):
+#   garage-s3-creds.enc.yaml    — Garage S3 key (Wave 2)
+#   backup-encryption.enc.yaml  — at-rest AES-CBC key (Wave 1)
+
+rancher-backup: {}
+
+backup:
+  enabled: true
+  name: rancher-nightly
+  # rancher-backup chart 109.x ships rancher-resource-set-{basic,full} (the old bare
+  # "rancher-resource-set" name is gone). -full backs up the complete Rancher state.
+  resourceSetName: rancher-resource-set-full
+  schedule: "0 2 * * *"            # 02:00 daily
+  retentionCount: 14
+  encryptionConfigSecretName: backup-encryption
+  # ⚠️ KNOWN LIMITATION (verified live 2026-06-24): the rancher-backup operator
+  # (backup-restore-operator) FORCES HTTPS to the S3 endpoint — it ignores an `http://`
+  # scheme, and `insecureTLSSkipVerify` only skips cert *verification*, not the protocol.
+  # Garage's in-cluster S3 (:3900) is plain HTTP, so backups fail with
+  #   "http: server gave HTTP response to HTTPS client".
+  # (Thanos and Loki are unaffected — their S3 clients honour insecure/HTTP.)
+  # FIX before relying on this: front garage-s3 with a TLS-terminating proxy (self-signed
+  # cert is fine with insecureTLSSkipVerify: true) and point `endpoint` at https://<proxy>:443.
+  s3:
+    credentialSecretName: garage-s3-creds
+    credentialSecretNamespace: cattle-resources-system
+    bucketName: rancher-backup
+    endpoint: garage-s3.object-store.svc:3900     # in-cluster Garage (HTTP — see warning above)
+    insecureTLSSkipVerify: true
+    endpointCA: ""
+    region: garage

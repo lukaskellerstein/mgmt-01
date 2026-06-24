@@ -1,0 +1,46 @@
+# Overrides for the upstream local-path-provisioner chart.
+# Keyed under the dependency name so values flow into the subchart.
+local-path-provisioner:
+  image:
+    repository: docker.io/rancher/local-path-provisioner
+    tag: v0.0.36
+    pullPolicy: IfNotPresent
+  # Helper pod creates/removes the backing host directories. Pin it — the
+  # upstream default is busybox:latest, which violates the no-latest rule.
+  helperImage:
+    repository: docker.io/library/busybox
+    tag: "1.37.0"
+
+  storageClass:
+    create: true
+    # Make this the cluster default — RKE2 ships none.
+    defaultClass: true
+    name: local-path
+    defaultVolumeType: hostPath
+    # Retain so deleting a PVC does NOT erase the on-disk data (Garage holds the
+    # fleet's backups + Thanos/Loki blocks). Orphaned PVs are cleaned up manually.
+    reclaimPolicy: Retain
+    volumeBindingMode: WaitForFirstConsumer
+
+  # Single node — write volumes under /opt (writable on the immutable Leap Micro root).
+  nodePathMap:
+    - node: DEFAULT_PATH_FOR_NON_LISTED_NODES
+      paths:
+        - /opt/local-path-provisioner
+
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+  helperPod:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 16Mi
+      limits:
+        cpu: 100m
+        memory: 64Mi

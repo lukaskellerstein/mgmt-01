@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: garage
+  labels:
+    {{- include "garage.labels" . | nindent 4 }}
+spec:
+  serviceName: garage
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "garage.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "garage.selectorLabels" . | nindent 8 }}
+      annotations:
+        # Re-roll if the garage.toml ConfigMap changes.
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      containers:
+        - name: garage
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          envFrom:
+            - secretRef:
+                name: garage-secrets
+          ports:
+            - { name: s3, containerPort: 3900 }
+            - { name: rpc, containerPort: 3901 }
+            - { name: admin, containerPort: 3903 }
+          volumeMounts:
+            - { name: config, mountPath: /etc/garage.toml, subPath: garage.toml }
+            - { name: data, mountPath: /var/lib/garage }
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: garage-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: {{ .Values.persistence.storageClass }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}

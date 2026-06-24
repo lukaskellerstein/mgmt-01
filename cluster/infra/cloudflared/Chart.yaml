@@ -1,0 +1,17 @@
+apiVersion: v2
+name: cloudflared
+description: >-
+  In-cluster Cloudflare Tunnel connector (remotely-managed / token model) for the
+  mgmt-01 Rancher box. The tunnel mgmt-01 terminates rancher.cellarwood.org (+ remote
+  SSH/kubectl, see docs/remote-access.md); routes, DNS and Access policies are configured
+  Cloudflare-side (see docs/manual-setup.md §5) — this chart only runs the connector.
+  Outbound-only, no inbound ports.
+type: application
+version: 0.2.0
+# cloudflared image version. Verify against https://github.com/cloudflare/cloudflared/releases
+appVersion: "2026.6.1"   # [verify]
+home: https://github.com/cloudflare/cloudflared
+sources:
+  - https://github.com/cloudflare/cloudflared
+maintainers:
+  - name: lukaskellerstein

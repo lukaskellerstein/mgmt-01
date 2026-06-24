@@ -1,0 +1,14 @@
+apiVersion: v2
+name: garage
+description: >-
+  Garage — EU (Deuxfleurs), S3-compatible object store for mgmt-01. One store serving
+  rancher-backup, Thanos long-term metrics and Loki chunks (buckets: rancher-backup, thanos,
+  loki, backups). First-party chart (Garage ships no upstream chart). replication_factor=1 →
+  single-node, NON-DURABLE (Decision 9); mirror critical buckets off-site for real DR.
+type: application
+# Bump when templates change.
+version: 1.0.0
+# Tracks the Garage image version (see values.yaml image.tag).
+appVersion: "1.0.1"   # [verify]
+maintainers:
+  - name: Lukas Kellerstein

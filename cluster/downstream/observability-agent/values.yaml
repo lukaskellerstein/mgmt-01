@@ -1,0 +1,18 @@
+# Overrides for the upstream Prometheus chart (agent mode). Keyed under the dependency name.
+# Plain Helm is single-cluster per run, so apply this once per workload cluster with that cluster's
+# kube-context:  helm upgrade --install obs-agent ./cluster/downstream/observability-agent \
+#                  -n cattle-monitoring-system --kube-context <cluster>
+prometheus:
+  server:
+    # agent mode = scrape + remote_write only, minimal local storage/RAM
+    extraFlags:
+      - enable-feature=agent
+    remoteWrite:
+      - url: https://prometheus.cellarwood.org/api/v1/write   # mgmt-01 via cloudflared, OR
+        # url: http://rancher.cellarwood.org/... through Rancher proxy — pick your exposure
+    resources:
+      requests: { cpu: 50m, memory: 256Mi }
+      limits:   { memory: 512Mi }
+  alertmanager: { enabled: false }
+  prometheus-pushgateway: { enabled: false }
+# Per-cluster external_labels (cluster name): set via a per-cluster overlay (-f) or --set.

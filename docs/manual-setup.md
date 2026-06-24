@@ -64,12 +64,12 @@ Routing lives in the Cloudflare Zero Trust dashboard (decision: dashboard-manage
 1. **Zero Trust → Networks → Tunnels → Create a tunnel** → connector **Cloudflared** →
    name it `mgmt-01`.
 2. **Copy the tunnel token** shown on the install screen (the long `ey...` value). Put it in
-   the SOPS Helm values overlay — see [`bootstrap.md`](./bootstrap.md) §1:
+   the cloudflared chart's SOPS values overlay — see [`bootstrap.md`](./bootstrap.md) §1:
    ```
-   values/secrets/cloudflared-token.enc.yaml  →  cloudflare.tunnel_token
+   cluster/infra/cloudflared/secrets.enc.yaml  →  tunnel.token
    ```
-   (Helmfile decrypts it in-line via `helm-secrets` and merges it over `values/cloudflared.yaml`;
-   you do **not** install the connector on the host — it runs in-cluster.)
+   (The chart renders it into a Secret; Helm decrypts the overlay in-line at deploy via
+   `helm-secrets`. You do **not** install the connector on the host — it runs in-cluster.)
 3. **Public Hostnames** — add these (service URLs are in-cluster, since cloudflared runs in
    the cluster). Cloudflare auto-creates the proxied DNS records on `cellarwood.org`:
 
@@ -78,7 +78,7 @@ Routing lives in the Cloudflare Zero Trust dashboard (decision: dashboard-manage
    | `rancher.cellarwood.org` | HTTP | `http://rancher.cattle-system.svc.cluster.local:80` |
    | `grafana.cellarwood.org` | HTTP | `http://rancher-monitoring-grafana.cattle-monitoring-system.svc.cluster.local:80` |
 
-   > `grafana.cellarwood.org` only resolves once the monitoring stack is up (Helmfile, later).
+   > `grafana.cellarwood.org` only resolves once the monitoring chart is up (deploy, later).
    > Add it now or when you enable monitoring — either works.
 
    For remote **SSH + kubectl** over this same tunnel (TCP public hostnames + Cloudflare
@@ -88,4 +88,4 @@ Routing lives in the Cloudflare Zero Trust dashboard (decision: dashboard-manage
 
 ## Done → deploy the platform
 Foundation is up. Continue with [`bootstrap.md`](./bootstrap.md):
-secrets (SOPS) → `make deploy` (`helmfile sync`) → Garage init → day-2.
+`make namespaces` → secrets (SOPS) → `make deploy` (plain Helm) → Garage init → day-2.

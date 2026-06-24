@@ -1,0 +1,18 @@
+apiVersion: v2
+name: monitoring
+description: >-
+  Central metrics for the fleet — kube-prometheus-stack with a Thanos sidecar shipping blocks to
+  Garage. This Prometheus also receives remote-write from downstream clusters; Grafana here is the
+  single observability pane. Thin wrapper over the upstream kube-prometheus-stack chart. (Prefer
+  Rancher UI integration? swap the dependency for the rancher-monitoring catalog chart — same upstream.)
+type: application
+# Bump when this wrapper's values change.
+version: 1.0.0
+# Tracks the upstream kube-prometheus-stack app version (prometheus-operator).
+appVersion: "v0.92.0"
+maintainers:
+  - name: Lukas Kellerstein
+dependencies:
+  - name: kube-prometheus-stack
+    version: "87.1.0"   # [verify] https://prometheus-community.github.io/helm-charts
+    repository: https://prometheus-community.github.io/helm-charts

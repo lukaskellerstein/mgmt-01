@@ -1,0 +1,15 @@
+# Overrides for the upstream docker-registry chart. Keyed under the dependency name.
+docker-registry:
+  replicaCount: 1
+  persistence:
+    enabled: true
+    size: 50Gi
+    storageClass: local-path    # [verify]
+  proxy:
+    enabled: true
+    remoteurl: https://registry-1.docker.io
+    # For Docker Hub rate limits, add a username/password via secretRef.
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits:   { memory: 512Mi }
+  # Optionally add more caches (ghcr.io, quay.io, registry.suse.com) as separate releases.

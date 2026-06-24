@@ -34,7 +34,7 @@ story rather than diluting the control plane.
 
 ---
 
-## The model: manual foundation → Helm (Helmfile) for everything else
+## The model: manual foundation → local Helm charts for everything else
 
 ```
    docs/manual-setup.md  │ OS + RKE2 + cert-manager + Rancher (Helm) + CF tunnel │  one-time,
@@ -42,53 +42,64 @@ story rather than diluting the control plane.
                          └──────────────────────────────────────────────────────┘
                                                    │ then
                                                    ▼
-   helmfile.yaml          │ helmfile sync → all platform releases on mgmt-01 (local) │
-   values/*.yaml          └─────────────────────────────────────────────────────────┘
+   bootstrap/namespaces.yaml │ kubectl apply → declarative namespaces (own them in git) │
+                         └────────────────────────────────────────────────────────────┘
+                                                   │ then, per chart
+                                                   ▼
+   cluster/infra/*       │ helm upgrade --install <chart> ./cluster/<tier>/<chart> -n <ns> │
+   cluster/platform/*    └────────────────────────────────────────────────────────────────┘
                                                    │ and, per workload cluster
                                                    ▼
-   helmfile.downstream.yaml │ helmfile sync --kube-context <cluster> → observability agent │
+   cluster/downstream/observability-agent │ helm ... --kube-context <cluster> → agent │
                          └──────────────────────────────────────────────────────────────┘
 ```
 
+This matches the rest of the fleet (`home-lab-01`, `onion-*`): **no Fleet, no Helmfile** — every
+service is a **local Helm chart** under `cluster/<tier>/<chart>`, deployed with plain
+`helm upgrade --install`.
+
 - **Manual foundation (`docs/manual-setup.md`)** — the one-time, node-local or
   external-account config that isn't worth automating on a single box: OS + RKE2, then
-  cert-manager + Rancher via **Helm**, and the Cloudflare tunnel via the dashboard. No
-  Terraform — `helm` + `kubectl` + documented steps instead.
-- **`helmfile.yaml` + `values/*.yaml`** — every platform service on `mgmt-01`, one Helm
-  release per component, applied with `helmfile sync`. Charts with no upstream Helm chart
-  (Garage, the rancher-backup `Backup` CR) are wrapped in the generic `bedag/raw` chart so
-  everything deploys through one tool.
-- **`helmfile.downstream.yaml`** — the light observability agent for the workload clusters;
+  cert-manager + Rancher via **Helm**, and the Cloudflare tunnel via the dashboard.
+- **`bootstrap/namespaces.yaml`** — the declarative source of truth for namespaces; apply it
+  first, then deploy charts with `-n <ns>` and *without* `--create-namespace`.
+- **`cluster/infra/*` + `cluster/platform/*`** — every platform service as a local chart.
+  Upstream charts (kube-prometheus-stack, Loki, docker-registry, rancher-backup) are **thin
+  wrapper charts** (a `dependencies:` entry + overrides); Garage and the cloudflared connector
+  are **first-party charts** with their own templates.
+- **`cluster/downstream/observability-agent`** — the light agent for the workload clusters;
   Helm is single-cluster per run, so apply it once per cluster with that kube-context.
 
 This means the **VPS migration in Decision 7 is a redeploy, not a rebuild**: stand up a new
-Rancher (Helm), apply the out-of-band secrets, and `helmfile sync` repaints the box.
+Rancher (Helm), apply the secrets, and `make deploy` repaints the box.
 
 ### Deploy
 
 ```bash
-make secrets-apply        # out-of-band secrets first (Helm does not own these)
-# pin every "__REPLACE__" chart version in helmfile.yaml   # [verify]
-make diff                 # preview        (helmfile diff)
-make deploy               # apply all      (helmfile sync)
+make namespaces           # kubectl apply -f bootstrap/namespaces.yaml (once, first)
+make secrets-apply        # apply every out-of-band Secret (scripts/secrets.py)
+# pin every "__REPLACE__" chart version (Chart.yaml dependencies) first   # [verify]
+make deploy               # helm upgrade --install every local chart (in order)
 make deploy-downstream c=<context>   # observability agent → one workload cluster
 ```
 
-Tooling: `helm`, `helmfile`, and the `helm-secrets` plugin
-(`brew install helmfile && helm plugin install https://github.com/jkroepke/helm-secrets`).
+`make deploy` installs cloudflared **last**, and it deliberately fails until you set its
+Cloudflare-issued tunnel token (`sops cluster/infra/cloudflared/secrets.enc.yaml`) — everything
+else comes up without it. Tooling: `helm`, `sops`, `age`, and the `helm-secrets` plugin
+(`helm plugin install https://github.com/jkroepke/helm-secrets`) for the cloudflared overlay.
 
 ---
 
 ## Bootstrap order (chicken-and-egg)
 
 Helm can't deploy Rancher onto a box that has no cluster yet, so a thin foundation stays
-manual, then Helmfile applies everything else:
+manual, then plain Helm applies everything else:
 
 1. **Manual foundation** (`docs/manual-setup.md`): Leap Micro + RKE2 (per the Fleet Build
    Runbook) → cert-manager + Rancher via Helm → `agent-tls-mode` → Cloudflare tunnel.
-2. **Secrets** (`docs/bootstrap.md` §1): SOPS + age → `make secrets-apply`.
-3. **Deploy:** `make deploy` (`helmfile sync`) brings up Garage, monitoring, logging,
-   registry-cache and rancher-backup on `mgmt-01`.
+2. **Secrets** (`docs/bootstrap.md` §1): SOPS + age → `make namespaces && make secrets-apply`.
+3. **Deploy:** `make deploy` brings up Garage, monitoring, logging, registry-cache and
+   rancher-backup on `mgmt-01`.
 4. **Downstream:** `make deploy-downstream c=<cluster>` pushes the observability agent to each
    workload cluster as it's imported.
 5. **Day-2:** initialise Garage (`docs/bootstrap.md` §3), fill the wave-2 secrets.
@@ -97,44 +108,41 @@ manual, then Helmfile applies everything else:
 
 ## Secrets — SOPS + age
 
-**Encrypted secrets live in Git; plaintext never does.** The chosen scheme is **SOPS + age**
-(simplest for a solo operator). Secret *values* are encrypted; metadata stays readable so
-you can review which secret a file defines without decrypting it.
+**Encrypted secrets live in Git; plaintext never does.** The scheme is **SOPS + age**, the fleet
+standard. Secrets are **co-located** with the chart that consumes them
+(`cluster/<tier>/<chart>/<name>.enc.yaml`). **Full scheme, keys, tooling and rotation:
+[`docs/secrets.md`](docs/secrets.md)** — the workflow runs through
+[`scripts/secrets.py`](scripts/secrets.py) (the `make` secret targets delegate to it), and the
+fleet recipients are already in `.sops.yaml` (your existing fleet age key decrypts — no per-repo key).
 
-```
-secrets/
-├── <name>.example.yaml   # committed — the shape, with fake values (documentation)
-└── <name>.enc.yaml       # committed — SOPS-encrypted real values (you create these)
-```
+Two file shapes, both SOPS-encrypted in Git:
 
-There are two ways a secret reaches a workload, both SOPS-encrypted in Git:
+**A. Out-of-band `Secret`s** — real `kind: Secret` manifests; only `data`/`stringData` is encrypted.
+Applied with `./scripts/secrets.py apply` (= `sops -d | kubectl apply`) so **Helm never owns them**.
+Charts reference them by name (`existingSecret` / `envFrom` / `credentialSecretName`).
 
-**A. Out-of-band `Secret`s** (`secrets/*.enc.yaml` → `make secrets-apply` → `kubectl apply`).
-Charts reference them (`existingSecret` / `envFrom` / `credentialSecretName`); Helm never owns
-them, so a `helmfile sync` can't clobber a live value.
-
-| Secret | Namespace | Wave | Holds |
+| Secret | Co-located in | Namespace | Wave |
 |---|---|---|---|
-| `garage-secrets` | `object-store` | 1 | Garage RPC secret + admin token |
-| `backup-encryption` | `cattle-resources-system` | 1 | rancher-backup at-rest key |
-| `garage-s3-creds` | `cattle-resources-system` | 2 | Garage S3 key for rancher-backup |
-| `thanos-objstore` | `cattle-monitoring-system` | 2 | Garage S3 config for Thanos |
-| `loki-s3-creds` | `cattle-logging-system` | 2 | Garage S3 key for Loki |
+| `garage-secrets` | `cluster/infra/garage/` | `object-store` | 1 |
+| `backup-encryption` | `cluster/platform/rancher-backup/` | `cattle-resources-system` | 1 |
+| `garage-s3-creds` | `cluster/platform/rancher-backup/` | `cattle-resources-system` | 2 |
+| `thanos-objstore` | `cluster/platform/monitoring/` | `cattle-monitoring-system` | 2 |
+| `loki-s3-creds` | `cluster/platform/logging/` | `cattle-logging-system` | 2 |
 
-*Wave 1* secrets can be created up front; *Wave 2* needs the Garage S3 key, which only
-exists after Garage is initialised (`docs/bootstrap.md` §3).
+*Wave 1* secrets can be created up front; *Wave 2* uses the Garage S3 key, imported during Garage
+init (`docs/bootstrap.md` §3). All Wave-2 secrets share one Garage app key.
 
-**B. Helm values overlay** — the cloudflared tunnel token (`values/secrets/cloudflared-token.enc.yaml`).
-The chart takes the token as a plain value, so Helmfile decrypts the overlay in-line at deploy
-via the **`helm-secrets`** plugin and merges it over `values/cloudflared.yaml` — no k8s `Secret`.
+**B. Helm values overlay** — the cloudflared tunnel token
+(`cluster/infra/cloudflared/secrets.enc.yaml`, whole-file encrypted). The chart renders the token
+into a Secret; Helm decrypts the overlay in-line at deploy via **`helm-secrets`**
+(`helm ... -f secrets://...`). The token is **Cloudflare-issued** — the one secret you must supply.
 
-Workflow (`make help` lists all targets):
+Workflow (`make help` lists all targets; full detail in [`docs/secrets.md`](docs/secrets.md)):
 
 ```bash
-make age-init                       # generate age/keys.txt, print recipient → paste into .sops.yaml
-cp secrets/garage-secrets.example.yaml secrets/garage-secrets.enc.yaml
-make sops-edit f=garage-secrets     # fill values; saved encrypted in place
-make secrets-apply                  # decrypt + kubectl apply all secrets/*.enc.yaml
+make sops-edit f=cluster/infra/garage/garage-secrets.enc.yaml   # decrypt → edit → re-encrypt
+make secrets-apply                  # apply every out-of-band Secret
+make secrets-lint                   # hygiene: no plaintext *.enc.yaml, no stray decrypted files
 ```
 
 ## Versions

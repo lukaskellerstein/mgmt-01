@@ -1,4 +1,0 @@
-# rancher-backup operator values — protects Rancher's own state (CRDs, settings, users,
-# cluster regs). Backs up to Garage via an S3 target (see values/rancher-backup-resources.yaml).
-# The operator is tiny; upstream defaults are fine.
-{}

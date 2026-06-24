@@ -1,0 +1,17 @@
+apiVersion: v2
+name: local-path-provisioner
+description: >-
+  Dynamic hostPath storage provisioner for mgmt-01, installed as the cluster's default
+  StorageClass (RKE2 ships none). Backing store for Garage, Thanos, Loki and the registry cache.
+  Thin wrapper over the upstream chart.
+type: application
+# Bump when this wrapper's values change.
+version: 1.0.0
+# Tracks the upstream local-path-provisioner app version.
+appVersion: "v0.0.36"
+maintainers:
+  - name: Lukas Kellerstein
+dependencies:
+  - name: local-path-provisioner
+    version: 0.0.37
+    repository: https://charts.containeroo.ch

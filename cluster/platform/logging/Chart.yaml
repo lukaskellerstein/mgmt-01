@@ -1,0 +1,17 @@
+apiVersion: v2
+name: logging
+description: >-
+  Central logs for the fleet — Loki (single-binary) with chunks in Garage bucket `loki`. Downstream
+  clusters ship logs here via Grafana Alloy; viewed in the same Grafana as metrics (one observability
+  pane). Thin wrapper over the upstream Loki chart.
+type: application
+# Bump when this wrapper's values change.
+version: 1.0.0
+# Tracks the upstream Loki app version.
+appVersion: "3.6.7"
+maintainers:
+  - name: Lukas Kellerstein
+dependencies:
+  - name: loki
+    version: "7.0.0"   # [verify] https://grafana.github.io/helm-charts
+    repository: https://grafana.github.io/helm-charts

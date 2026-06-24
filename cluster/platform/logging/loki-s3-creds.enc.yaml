@@ -1,0 +1,38 @@
+# Garage S3 access key for Loki chunk storage (bucket `loki`). Real k8s Secret (only data/stringData
+# encrypted). Loki's S3 client falls back to the AWS SDK env chain, so the keys are provided as AWS_*
+# env via singleBinary.extraEnvFrom (values.yaml).
+# Apply out of band: ./scripts/secrets.py apply cluster/platform/logging/loki-s3-creds.enc.yaml
+# Wave 2: uses the shared Garage S3 app key (see docs/bootstrap.md §3).
+apiVersion: v1
+kind: Secret
+metadata:
+    name: loki-s3-creds
+    namespace: cattle-logging-system
+type: Opaque
+stringData:
+    AWS_ACCESS_KEY_ID: ENC[AES256_GCM,data:pELdZr4I6xs8qFR6isfjr7bdfQhgwHypPdY=,iv:0QDnZRBVzElYC1EYIFUEyYGt+2q3yF8H/CcpecxTtkg=,tag:9BF9TMkWN6SSS+Z32olfXw==,type:str]
+    AWS_SECRET_ACCESS_KEY: ENC[AES256_GCM,data:Gv0VPQBEsDRy4/AR3IdWJKIDByNeX8+xioT6HRF1WAtY5qW0gIP0yDQ3ZNdUVTLT5BBJfOl/ZD2QWhWqfjcBYg==,iv:MasaykvbStPDVbJ4cqGUqfTrDQd8g6yDH/EoaRSSpUY=,tag:PnFAQubI/GJ2NFW7/Yi6xQ==,type:str]
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBoNVE2NHRNZFMza1hSRDdP
+            VEZvYzVkb2JBVEF4Z1JZaytiNDVXLzBqekJBCjBBNHFTZjZ1RStqMXFvT3BRUnE3
+            M2RaWWpkZFBONUxsY1hkL2pzVGxSdWMKLS0tIEU1aU1aQk96di9qWWtnTGkxcm9l
+            eHhtcFVHbkMzWjk5WTRpUmh2QnhsWTAKXPrP8vUFrwBbeumfu9vt2/80Qb/LTb35
+            aQapwKAW+rVVnbHZfe20LTQbmGBG0FKd0kzkYBoASFS7AHvEh2jwZA==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1fgfwws7708s2xk0m99ftrajd98py9r62qnldvkklvs4tx5knz3zs4rjnud
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBxNWUzR29QTENaYzZtN2w2
+            d1creC9SR00zRUhrTWxzckZ2RVY5WkJ5VDNNClFVaGE5VzRNSTc4S1NVQk16dm9O
+            T3oybGFDK2hORHZodUpuS1NMendTQlkKLS0tIDlBSmhOTE1aUHBwcDRIZXJKWXZQ
+            T0dMWUcrcDhwMHp1ZEdvVElrbHBaMWsKeGah1sKVX7BQNqSP8FQTuyQ/6vJCB70E
+            xgvdJ6Bo9J7FjPS9DgRJQrIzeJbUGsIokweKtFBDTBxWX1CR5GIRCw==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1mpng9vq3ae3ek6c4l0tes05s8um8yv3lg6j7a2xdwy786vrzap8s4w6hg6
+    encrypted_regex: ^(data|stringData)$
+    lastmodified: "2026-06-23T21:32:35Z"
+    mac: ENC[AES256_GCM,data:gJVYD9nLNtpP2zS9U2lsEZ2yD+rqr4aakyCwQpsHsqQgWdQ0zC0Nuz3lO8W0+/QZSOh7PQdjcc1+HBOgyGHebKOA+77LneAbSDn0OcTyFCjfQa9cd+w/g5ch1RUp2EgfZMHoOrxOsEkaukxN+ZkkLesJt0aCSB6RHDpiPbP2ZHw=,iv:TmjlU7VwpulMB75tAUD7+fC285mXMP5NR0x1wVWphEw=,tag:sHOzdQ5tG+H9X9ESitH5Pg==,type:str]
+    version: 3.13.1

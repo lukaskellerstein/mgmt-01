@@ -1,0 +1,13 @@
+# Patterns to ignore when building packages.
+.DS_Store
+.git/
+.gitignore
+*.tmproj
+*.bak
+*.orig
+*~
+.vscode/
+.idea/
+# SOPS material must never end up inside a packaged chart.
+.sops.yaml
+secrets*.yaml

@@ -1,0 +1,25 @@
+# Garage object store — see Chart.yaml. The garage-secrets Secret (GARAGE_RPC_SECRET /
+# GARAGE_ADMIN_TOKEN) is co-located (garage-secrets.enc.yaml) and applied out of band via
+# scripts/secrets.py so Helm never owns it; the StatefulSet reads it with envFrom.
+
+image:
+  repository: dxflrs/garage
+  tag: "v1.0.1"          # [verify]
+  pullPolicy: IfNotPresent
+
+# Single node: one copy only. NON-DURABLE — mirror critical buckets off-site.
+replicationFactor: 1     # [verify] Garage <v1.0 used replication_mode = "none"
+
+s3:
+  region: garage
+
+persistence:
+  storageClass: local-path   # [verify] RKE2 default; or longhorn
+  size: 200Gi
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 1Gi

@@ -1,0 +1,65 @@
+# cloudflared — in-cluster Cloudflare Tunnel connector (remotely-managed / token).
+#
+# This chart ONLY runs the connector. The tunnel itself, its published application
+# routes (rancher.cellarwood.org / ssh.cellarwood.org / k8s.cellarwood.org), DNS, and the
+# email-gated Access apps are all configured Cloudflare-side. See docs/manual-setup.md §5
+# and docs/remote-access.md.
+
+# mgmt-01 is single-node, but 2 connectors give zero-downtime rolling restarts/upgrades
+# (Cloudflare load-balances across connectors).
+replicaCount: 2
+
+image:
+  repository: cloudflare/cloudflared
+  # Empty -> uses .Chart.AppVersion. Pin to the current release (prefer a digest):
+  # https://github.com/cloudflare/cloudflared/releases
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+tunnel:
+  # The Cloudflare connector token. Leave EMPTY here — supply it at apply time from the
+  # encrypted secrets file via the helm-secrets `secrets://` getter (SOPS/age):
+  #   helm upgrade --install cloudflared ./cluster/infra/cloudflared -n cloudflared \
+  #     -f secrets://cluster/infra/cloudflared/secrets.enc.yaml
+  # The chart renders the token into a Secret. Never put a real token here.
+  token: ""
+
+# cloudflared metrics/health server; /ready backs the probes below.
+metricsPort: 2000
+
+serviceAccount:
+  create: true
+  name: ""
+
+podAnnotations: {}
+
+# cloudflared needs no root, no privileges, no writable root fs in token mode.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+resources:
+  requests:
+    cpu: 20m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

@@ -1,0 +1,45 @@
+# Declarative namespaces for mgmt-01 — the single source of truth.
+#
+# Apply this FIRST, before any chart or secret:
+#   kubectl apply -f bootstrap/namespaces.yaml
+# Then deploy charts with `helm ... -n <ns>` and WITHOUT `--create-namespace`
+# (the namespace already exists and is owned by git, not by a CLI flag), and apply
+# co-located secrets with `./scripts/secrets.py apply cluster/<tier>/<chart>/<name>.enc.yaml`.
+#
+# The cattle-* namespaces are also created by Rancher/its charts; declaring them here lets a
+# Secret land before the chart and keeps ownership in git.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: local-path-storage      # cluster/infra/local-path-provisioner
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: object-store            # cluster/infra/garage
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cloudflared             # cluster/infra/cloudflared
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: registry-cache          # cluster/infra/registry-cache
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cattle-resources-system # cluster/platform/rancher-backup
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cattle-monitoring-system # cluster/platform/monitoring
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cattle-logging-system   # cluster/platform/logging

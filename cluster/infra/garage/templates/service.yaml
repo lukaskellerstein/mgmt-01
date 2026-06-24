@@ -1,0 +1,25 @@
+# Service names are fixed (garage-s3 / garage-admin): other charts resolve the S3 endpoint via
+# in-cluster DNS (garage-s3.object-store.svc:3900), so they must not depend on the release name.
+apiVersion: v1
+kind: Service
+metadata:
+  name: garage-s3
+  labels:
+    {{- include "garage.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "garage.selectorLabels" . | nindent 4 }}
+  ports:
+    - { name: s3, port: 3900, targetPort: 3900 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: garage-admin
+  labels:
+    {{- include "garage.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "garage.selectorLabels" . | nindent 4 }}
+  ports:
+    - { name: admin, port: 3903, targetPort: 3903 }

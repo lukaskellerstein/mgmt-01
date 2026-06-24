@@ -1,8 +1,24 @@
-# Decrypted secrets — only *.enc.yaml / SOPS-encrypted files belong in Git
+# Secrets — only *.enc.yaml / SOPS-encrypted files belong in Git (see docs/secrets.md)
 *.secret.yaml
 !*.enc.yaml
 secrets.dec.*
+**/*.dec.yaml          # decrypted SOPS output
+**/*.plain.yaml        # plaintext placeholders / scratch
+# cloudflared tunnel credentials (`cloudflared tunnel create` output / extracted creds)
+**/credentials.json
 
-# Local kube/age material
-*.kubeconfig
+# age / SOPS private key material — NEVER commit
+*.agekey
+**/keys.txt
 age/keys.txt
+
+# Local kube material
+*.kubeconfig
+
+# Helm: vendored subchart archives + lockfiles from `helm dependency build`.
+**/charts/*.tgz
+**/Chart.lock
+
+# Python
+__pycache__/
+*.pyc

@@ -1,0 +1,36 @@
+# Encryption config for rancher-backup (encrypts the Backup contents at rest in Garage).
+# Real k8s Secret (only data/stringData encrypted). Referenced as encryptionConfigSecretName.
+# Apply out of band: ./scripts/secrets.py apply cluster/platform/rancher-backup/backup-encryption.enc.yaml
+# Wave 1: can be created before Garage is initialised. AES-CBC key = head -c 32 /dev/urandom | base64.
+apiVersion: v1
+kind: Secret
+metadata:
+    name: backup-encryption
+    namespace: cattle-resources-system
+type: Opaque
+stringData:
+    encryption-provider-config.yaml: ENC[AES256_GCM,data:XkLc3nw39Dupg/eCVzI7QCS5eERINpb3B+chbdxY07cTiz8V/W/guYjUSJdcmANODlhXM4Dq3TcifXjhYdDj1cRxnWdwa5pSGPl0QqpiGzFWOgeoSFrPUybB5WVFtTZyKwu/7C/Gcw8z3AL79PR2WdvMI/gqYGcW+JDCvn54cSQBRpLIrtErzs8xqAT9ozPVHKx+TbM/7xcWtdyGtiH++2u8dgKkrze+DAmrfXd+Omrrbyb2kxgcGpMQtpE+93BFeViqhf72oR6ZxSqKOjO/O0fKd1sIg6JH6W/WQJ1PR/cvczprwW62giBYqb9V5kbsb5QH5xljvfSoFr7Ns5drx4pAafmSDaImdkNz4sXs6g==,iv:JaYoBfNUMiMbzoFhCNPtUIT9Dpyr+E6YyFITeKXOjSU=,tag:qGer4SKnbNZJWRineiXIqA==,type:str]
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBzaHJObnZtWXhRRlBvcUFL
+            N1h2Ym1PenpFYTBNWnVYbDVMUTBFNWk2bGxzCnNld2dwYkxxNjlCVmhxdUl0UnRm
+            ZVEzblZUTnIxTy83NXZOS25JTFMwRFkKLS0tIGdtWG5UR2VsZytxVStPYktWZkFF
+            aHlKZVFXd05qcVVHWGlFVUw1RFNBT2MKI8XnMSsX6anmnFv/wP6v3TNHhs/Nqu5V
+            yhpeomBw2j6N/mUBf55BGKd/FTXt4V+XtPCr1oFjxDFE9keyG9PqlA==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1fgfwws7708s2xk0m99ftrajd98py9r62qnldvkklvs4tx5knz3zs4rjnud
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBzMTZIVTM4RDUyTzg4bDdV
+            cTFSckxkdUg5NElLeG0zSHNJbHkxMWVFMHdZCnBzajZQaWtSS2hEdUt6VWc4Vmpp
+            anh0ZkxzZkRuajBXd3RUZ2d6RW56b2sKLS0tIFB5VUxZelI4RkpBSUtQK1NSZ2hv
+            dGxwRnJrTW4zMEJqK0cwdHREZm8wOEEKvZaS9MvFEpKp2IEdG/QBtL8HilfbwCKi
+            XQ9q+P0UFClssY12ZpQuJoK1YzJUtnZN3iLLWt2v4+TPLdFHRmadKA==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1mpng9vq3ae3ek6c4l0tes05s8um8yv3lg6j7a2xdwy786vrzap8s4w6hg6
+    encrypted_regex: ^(data|stringData)$
+    lastmodified: "2026-06-23T21:32:35Z"
+    mac: ENC[AES256_GCM,data:qO5wwUEvGdfIi12M5M0of6awaCrZxYApSLqyaVm45ss6brwu1YXxBXqxMERDUd11dPG9mrwt8sgvPtbL4I1lYV5O0NVbhvsAKq7vjEmsUvx0ubVWcxifT24VfkzsoJ53eUy2Ts1wkZu6GmkRU2UckPEz9+QlDF/k9WBB3jFdrDo=,iv:ndZLFCxR2BU0vV+X4LVNYxdLSIPQR2o/tOxTfbYyZF8=,tag:62EWv1WvJ8ddJsfj7oGNFA==,type:str]
+    version: 3.13.1
